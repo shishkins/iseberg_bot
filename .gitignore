@@ -1,0 +1,9 @@
+env
+session
+*.session
+*.session-journal
+*.js
+.env
+data.py
+proxies.py
+*.json
