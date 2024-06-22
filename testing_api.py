@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 import hmac
 import hashlib
 from dateutil import parser
+import numpy as np
 from json import dumps as dp, loads as ld
 import datetime
 from colorama import *
@@ -125,10 +126,11 @@ class IceBergBot:
         self.current_account_proxy = self.proxies[1]
         self.current_account_number = None
 
-        self.all_end_farming = dict.fromkeys(self.datas, datetime.datetime.now())
+        self.all_end_farming = dict.fromkeys(self.datas, datetime.datetime.utcnow())
         self.all_balances = dict.fromkeys(self.datas)
         self.all_claiming_status = dict.fromkeys(self.datas, True)
         self.config = json.loads(open('config.json', 'r').read())
+        self.garis = putih + "~" * 50
 
     def http(self, url):
         headers = self.base_headers.copy()
@@ -161,21 +163,104 @@ class IceBergBot:
                     self.log(f"{merah}maximum connection retries, raising error")
                     raise e
 
+    def log(self, message):
+        now = datetime.datetime.now().isoformat(" ").split(".")[0]
+        print(f"{hitam}[{now}]{reset} {message}")
+
+    def data_parsing(self, data):
+        redata = {}
+        for i in unquote(data).split("&"):
+            key, value = i.split("=")
+            redata[key] = value
+
+        return redata
+
     def get_balance(self):
         url_balance = 'https://0xiceberg.store/api/v1/web-app/balance'
         res = self.http(url=url_balance)
         self.all_balances[self.current_account_number] = res.json()['amount']
+        self.log(f"{hijau}current balance: {putih}{res.json()['amount']}")
 
     def claim_reward(self):
+
         url_farming = 'https://0xiceberg.store/api/v1/web-app/farming'
-        res = self.http(url=url_farming)
-        self.all_balances[self.current_account_number] = res.json()['amount']
+        time_to_claim = self.all_end_farming[self.current_account_number]
+        if datetime.datetime.utcnow() < time_to_claim:
+            self.log(f"{hijau}not time to claim, it will be after {putih}{time_to_claim.strftime('%d.%m.%y %H:%M')}")
+        else:
+            res = self.http(url=url_farming)
+            to_claim = res.json()['amount']
+            time_to_claim = parser.parse(res.json()['stop_time'] )
+            self.log(f"{hijau}success to claim reward, next time to claim will be in {putih}{time_to_claim.strftime('%d.%m.%y %H:%M')}")
+            self.all_end_farming[self.current_account_number] = time_to_claim
 
-bot = IceBergBot()
-bot.current_account_number = 1
-bot.claim_reward()
+    def countdown(self, t):
+        while t:
+            menit, detik = divmod(t, 60)
+            jam, menit = divmod(menit, 60)
+            jam = str(jam).zfill(2)
+            menit = str(menit).zfill(2)
+            detik = str(detik).zfill(2)
+            print(f"{putih}waiting until {jam}:{menit}:{detik} ", flush=True, end="\r")
+            t -= 1
+            time.sleep(1)
+        print("                          ", flush=True, end="\r")
 
-# solve_tasks()
-claim_reward()
+    def main(self):
+        banner = f"""
+    {hijau}AUTO CLAIM FOR {putih}ICEBERG {hijau}/ {biru}@shishkins
+
+    {hijau}By : {putih}t.me/tretiakov_aal
+    {putih}Github : {hijau}@shiskins
+
+    {hijau}Message : {putih}Dont forget to 'git pull' maybe i update the bot !
+        """
+        arg = sys.argv
+        if "noclear" not in arg:
+            os.system("cls" if os.name == "nt" else "clear")
+        print(banner)
+        self.log(f"{hijau}total account : {putih}{len(self.datas)}")
+        if len(self.datas) <= 0:
+            self.log(f"{merah}add data account in data.py")
+            sys.exit()
+
+        self.log(self.garis)
+        while True:
+            list_accounts = list(self.datas.keys())
+            np.random.shuffle(list_accounts)
+            for no in list_accounts:
+                self.current_account_number = no
+                self.current_account_proxy = self.proxies[no]
+                data_parse = self.data_parsing(self.datas[no])
+                user = json.loads(data_parse['user'])
+                self.log(f"{hijau}account number - {putih}{no + 1}")
+                self.log(f"{hijau}login as : {putih}{user['first_name']}")
+                self.get_balance()
+                self.claim_reward()
+
+            list_accounts.sort(key=lambda x: self.all_end_farming[x])
+
+            min_countdown = self.all_end_farming[list_accounts[0]]
+            result = min_countdown - datetime.datetime.utcnow()
+            if result <= 0:
+                continue
+
+            self.countdown(result)
+
+
+
+if __name__ == "__main__":
+    try:
+        app = IceBergBot()
+        app.main()
+    except KeyboardInterrupt:
+        sys.exit()
 
 # res = requests.post(url, headers, auth = BearerAuth('3pVzwec1Gs1m'))
+
+IMPORTANT!!
+это для того, чтобы получить награду
+requests.delete(url='https://0xiceberg.store/api/v1/web-app/farming/collect/', headers = headers, proxies = proxy_headers).json()
+
+это для того, чтобы взять таск
+requests.patch(url='https://0xiceberg.store/api/v1/web-app/tasks/task/7/', data = headers).text
