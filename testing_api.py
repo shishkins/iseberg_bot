@@ -132,19 +132,31 @@ class IceBergBot:
         self.config = json.loads(open('config.json', 'r').read())
         self.garis = putih + "~" * 50
 
-    def http(self, url):
+    def http(self, url, method = 'post'):
         headers = self.base_headers.copy()
         headers['X-Telegram-Auth'] = self.datas[self.current_account_number]
         proxy_headers = {
             'https': self.proxies[self.current_account_number]
         }
+        matching_methods = {
+            'post': requests.post,
+            'delete': requests.delete,
+            'get': requests.get,
+            'patch': requests.patch
+        }
+
+        http_func = matching_methods[method]
         counter_tries = 0
         while True:
             try:
-                res = requests.post(url=url,
-                                    headers=headers,
-                                    proxies=proxy_headers,
-                                    timeout=30)
+                res = http_func(url=url,
+                                headers=headers,
+                                proxies=proxy_headers,
+                                timeout=30)
+                # res = requests.post(url=url,
+                #                     headers=headers,
+                #                     proxies=proxy_headers,
+                #                     timeout=30)
                 open(".http_request.log", "a", encoding="utf-8").write(res.text + "\n")
                 if "<html>" in res.text:
                     time.sleep(2)
@@ -183,15 +195,19 @@ class IceBergBot:
 
     def claim_reward(self):
 
-        url_farming = 'https://0xiceberg.store/api/v1/web-app/farming'
+        url_farming = 'https://0xiceberg.store/api/v1/web-app/farming/collect'
+        url_get_next_time = 'https://0xiceberg.store/api/v1/web-app/farming/'
+        res = self.http()
         time_to_claim = self.all_end_farming[self.current_account_number]
         if datetime.datetime.utcnow() < time_to_claim:
             self.log(f"{hijau}not time to claim, it will be after {putih}{time_to_claim.strftime('%d.%m.%y %H:%M')}")
         else:
-            res = self.http(url=url_farming)
-            to_claim = res.json()['amount']
+            res = self.http(url=url_farming, method = 'delete')
+            balance_after_claim = res.json()['amount']
+            self.log(f"{hijau}success to claim reward, balance after claim: {putih}{balance_after_claim}")
+            res = self.http(url=url_get_next_time)
             time_to_claim = parser.parse(res.json()['stop_time'] )
-            self.log(f"{hijau}success to claim reward, next time to claim will be in {putih}{time_to_claim.strftime('%d.%m.%y %H:%M')}")
+            self.log(f"{hijau} next time to claim will be in {putih}{time_to_claim.strftime('%d.%m.%y %H:%M')}")
             self.all_end_farming[self.current_account_number] = time_to_claim
 
     def countdown(self, t):
@@ -258,9 +274,9 @@ if __name__ == "__main__":
 
 # res = requests.post(url, headers, auth = BearerAuth('3pVzwec1Gs1m'))
 
-IMPORTANT!!
-это для того, чтобы получить награду
-requests.delete(url='https://0xiceberg.store/api/v1/web-app/farming/collect/', headers = headers, proxies = proxy_headers).json()
-
-это для того, чтобы взять таск
-requests.patch(url='https://0xiceberg.store/api/v1/web-app/tasks/task/7/', data = headers).text
+# IMPORTANT!!
+# это для того, чтобы получить награду
+# requests.delete(url='https://0xiceberg.store/api/v1/web-app/farming/collect/', headers = headers, proxies = proxy_headers).json()
+#
+# это для того, чтобы взять таск
+# requests.patch(url='https://0xiceberg.store/api/v1/web-app/tasks/task/7/', data = headers).text
