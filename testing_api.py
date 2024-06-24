@@ -10,7 +10,7 @@ import hashlib
 from dateutil import parser
 import numpy as np
 from json import dumps as dp, loads as ld
-import datetime
+from datetime import datetime, timezone, timedelta
 from colorama import *
 from urllib.parse import unquote
 
@@ -126,7 +126,7 @@ class IceBergBot:
         self.current_account_proxy = self.proxies[1]
         self.current_account_number = None
 
-        self.all_end_farming = dict.fromkeys(self.datas, datetime.datetime.utcnow())
+        self.all_end_farming = dict.fromkeys(self.datas, datetime.now(timezone.utc))
         self.all_balances = dict.fromkeys(self.datas)
         self.all_claiming_status = dict.fromkeys(self.datas, True)
         self.config = json.loads(open('config.json', 'r').read())
@@ -176,7 +176,7 @@ class IceBergBot:
                     raise e
 
     def log(self, message):
-        now = datetime.datetime.now().isoformat(" ").split(".")[0]
+        now = datetime.now(timezone.utc).isoformat(" ").split(".")[0]
         print(f"{hitam}[{now}]{reset} {message}")
 
     def data_parsing(self, data):
@@ -195,18 +195,20 @@ class IceBergBot:
 
     def claim_reward(self):
 
-        url_farming = 'https://0xiceberg.store/api/v1/web-app/farming/collect'
+        url_collect = 'https://0xiceberg.store/api/v1/web-app/farming/collect'
         url_get_next_time = 'https://0xiceberg.store/api/v1/web-app/farming/'
-        res = self.http()
         time_to_claim = self.all_end_farming[self.current_account_number]
-        if datetime.datetime.utcnow() < time_to_claim:
+        if datetime.now(timezone.utc) < time_to_claim:
             self.log(f"{hijau}not time to claim, it will be after {putih}{time_to_claim.strftime('%d.%m.%y %H:%M')}")
         else:
-            res = self.http(url=url_farming, method = 'delete')
-            balance_after_claim = res.json()['amount']
-            self.log(f"{hijau}success to claim reward, balance after claim: {putih}{balance_after_claim}")
+            res = self.http(url=url_collect, method = 'delete')
+            if res.status_code == 200:
+                balance_after_claim = res.json()['amount']
+                self.log(f"{hijau}success to claim reward, balance after claim: {putih}{balance_after_claim}")
+            else:
+                self.log(f"{merah}cannot get reward, maybe it was rewarded ago{merah}")
             res = self.http(url=url_get_next_time)
-            time_to_claim = parser.parse(res.json()['stop_time'] )
+            time_to_claim = parser.parse(res.json()['stop_time'])
             self.log(f"{hijau} next time to claim will be in {putih}{time_to_claim.strftime('%d.%m.%y %H:%M')}")
             self.all_end_farming[self.current_account_number] = time_to_claim
 
@@ -257,11 +259,11 @@ class IceBergBot:
             list_accounts.sort(key=lambda x: self.all_end_farming[x])
 
             min_countdown = self.all_end_farming[list_accounts[0]]
-            result = min_countdown - datetime.datetime.utcnow()
-            if result <= 0:
+            result = min_countdown - datetime.now(timezone.utc)
+            if result <= timedelta(0):
                 continue
 
-            self.countdown(result)
+            self.countdown(int(result.total_seconds()))
 
 
 
