@@ -3,5 +3,5 @@
         "low":100,
         "high":200
     },
-    "max_http_tries": 25
+    "max_http_retries": 25
 }
