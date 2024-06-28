@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS bot
+FROM python:3.10-slim AS bot
 LABEL authors="Tretyakov.AA"
 
 ENV PYTHONFAULTHANDLER=1
